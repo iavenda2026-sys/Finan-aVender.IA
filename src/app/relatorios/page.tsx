@@ -18,7 +18,7 @@ export default async function ReportsPage({
     (typeof params.month === "string" ? params.month : undefined) ||
     new Date().toISOString().slice(0, 7);
 
-  const data = await getDashboardData(month);
+  const data = await getDashboardData({ period: "custom", startDate: `${month}-01`, endDate: `${month}-31` });
 
   const chartData = data.byCompany.map((item) => ({
     name: item.company.name,

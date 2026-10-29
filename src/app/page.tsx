@@ -2,7 +2,7 @@ import { Shell } from "@/components/shell";
 import { StatCard } from "@/components/stat-card";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MonthlyBarChart, CategoryPieChart } from "@/components/charts";
+import { MonthlyBarChart, MonthlyTrendChart, CategoryPieChart } from "@/components/charts";
 import { Button } from "@/components/ui/button";
 import {
   ArrowUpRight,
@@ -23,12 +23,12 @@ export default async function DashboardPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const params = await searchParams;
-  const month =
-    (typeof params.month === "string" ? params.month : undefined) ||
-    new Date().toISOString().slice(0, 7);
+  const period = (typeof params.period === "string" ? params.period : "all") as "all" | "month" | "year" | "custom";
+  const startDate = typeof params.startDate === "string" ? params.startDate : undefined;
+  const endDate = typeof params.endDate === "string" ? params.endDate : undefined;
 
   const [data, upcomingExpenses] = await Promise.all([
-    getDashboardData(month),
+    getDashboardData({ period, startDate, endDate }),
     getUpcomingExpenses(),
   ]);
 
@@ -48,6 +48,13 @@ export default async function DashboardPage({
     value: item.total,
   }));
 
+  const periodLabel = {
+    all: "Todo o período",
+    month: "Este mês",
+    year: "Este ano",
+    custom: `${data.startDate} a ${data.endDate}`,
+  }[data.period];
+
   return (
     <Shell>
       <div className="space-y-8 animate-fade-in">
@@ -55,13 +62,25 @@ export default async function DashboardPage({
           title="Dashboard"
           description="Visão geral das finanças da Vender.IA"
         >
-          <form className="flex items-center gap-2">
-            <input
-              type="month"
-              name="month"
-              defaultValue={month}
+          <form className="flex flex-wrap items-center justify-end gap-2">
+            <select
+              name="period"
+              defaultValue={period}
               className="h-11 rounded-xl border border-slate-700 bg-slate-900/50 px-4 text-sm text-white outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            />
+            >
+              <option value="all">Geral</option>
+              <option value="month">Este mês</option>
+              <option value="year">Este ano</option>
+              <option value="custom">Personalizado</option>
+            </select>
+            {period === "custom" && (
+              <>
+                <label className="sr-only" htmlFor="startDate">Data inicial</label>
+                <input id="startDate" type="date" name="startDate" defaultValue={startDate} className="h-11 rounded-xl border border-slate-700 bg-slate-900/50 px-3 text-sm text-white" />
+                <label className="sr-only" htmlFor="endDate">Data final</label>
+                <input id="endDate" type="date" name="endDate" defaultValue={endDate} className="h-11 rounded-xl border border-slate-700 bg-slate-900/50 px-3 text-sm text-white" />
+              </>
+            )}
             <Button type="submit">Filtrar</Button>
           </form>
         </PageHeader>
@@ -72,7 +91,7 @@ export default async function DashboardPage({
             value={data.totals.revenue}
             icon={ArrowUpRight}
             variant="success"
-            trend={`Mês: ${month}`}
+            trend={periodLabel}
           />
           <StatCard
             title="Despesas"
@@ -96,6 +115,19 @@ export default async function DashboardPage({
             trend="Empresas fechadas"
           />
         </div>
+
+        <Card className="card-gradient border-slate-800 glow-blue">
+          <CardHeader>
+            <CardTitle className="text-lg text-white">Receitas x Despesas por mês</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.monthlyTrend.length > 0 ? (
+              <MonthlyTrendChart data={data.monthlyTrend} />
+            ) : (
+              <EmptyState message="Nenhum dado para o período selecionado." />
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid gap-6 lg:grid-cols-2">
           <Card className="card-gradient border-slate-800 glow-blue">
